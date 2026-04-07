@@ -1,4 +1,23 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bhagavad Gita Quiz</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body style="background-color: #0A0F1E; margin: 0; padding: 0;">
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    // 1. Tell React where to find its tools (This replaces the 'import' line)
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    // ==========================================
+    // 2. PASTE ALL OF CLAUDE'S CODE BELOW THIS LINE
+    // ==========================================
 
 /* ─── PALETTE & FONTS ─────────────────────────────────────── */
 const CSS = `
@@ -1004,3 +1023,14 @@ export default function GitaQuiz() {
     </div>
   );
 }
+    
+
+    // ==========================================
+    // 3. START THE APP (Leave this at the very bottom)
+    // ==========================================
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    // Note: If Claude named the main function something other than 'App', change it here:
+    root.render(<App />);
+  </script>
+</body>
+</html>     
