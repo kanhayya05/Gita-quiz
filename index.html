@@ -1,0 +1,1006 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+
+/* ─── PALETTE & FONTS ─────────────────────────────────────── */
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Cinzel:wght@400;600;700;900&family=Cinzel+Decorative:wght@400;700&display=swap');
+
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --gold:#C9A84C;
+  --gold2:#E8C97A;
+  --saffron:#E8640A;
+  --saffron2:#FF8C3A;
+  --ink:#0A0F1E;
+  --ink2:#111827;
+  --cream:#FDF6E8;
+  --cream2:#F5E6CC;
+  --muted:rgba(253,246,232,0.55);
+  --border:rgba(201,168,76,0.22);
+  --red:#E84040;
+  --green:#3DBF7A;
+}
+
+body{background:var(--ink)}
+
+.app{
+  min-height:100vh;
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 10%, rgba(201,168,76,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 80% at 85% 90%, rgba(232,100,10,0.06) 0%, transparent 60%),
+    linear-gradient(160deg, #0A0F1E 0%, #0F1A2E 50%, #130D05 100%);
+  font-family:'Cormorant Garamond',serif;
+  color:var(--cream);
+  position:relative;
+  overflow-x:hidden;
+}
+
+/* ── NOISE GRAIN ── */
+.app::after{
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:0;opacity:0.4;
+}
+
+.wrap{max-width:760px;margin:0 auto;padding:28px 18px 80px;position:relative;z-index:1}
+
+/* ── DECORATIVE LOTUS ── */
+.lotus{text-align:center;font-size:2.6rem;color:var(--gold);margin-bottom:2px;
+  animation:lotusGlow 4s ease-in-out infinite}
+@keyframes lotusGlow{0%,100%{text-shadow:0 0 18px rgba(201,168,76,.4),0 0 40px rgba(232,100,10,.2)}
+  50%{text-shadow:0 0 35px rgba(201,168,76,.8),0 0 70px rgba(232,100,10,.4)}}
+
+/* ── HEADER ── */
+.site-title{font-family:'Cinzel Decorative',serif;font-size:clamp(1.1rem,3.5vw,1.8rem);
+  color:var(--gold);text-align:center;letter-spacing:1.5px;line-height:1.3;
+  text-shadow:0 2px 18px rgba(201,168,76,.35)}
+.site-sub{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:4px;
+  color:var(--muted);text-align:center;text-transform:uppercase;margin-top:5px}
+.divider{display:flex;align-items:center;gap:10px;margin:18px 0;color:var(--gold);font-size:.9rem}
+.divider::before,.divider::after{content:'';flex:1;height:1px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+
+/* ── GLASS CARD ── */
+.card{
+  background:rgba(253,246,232,0.03);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:28px 26px;
+  margin-bottom:20px;
+  backdrop-filter:blur(10px);
+  position:relative;overflow:hidden;
+}
+.card::before{
+  content:'';position:absolute;inset:0;border-radius:16px;
+  background:linear-gradient(135deg,rgba(201,168,76,.04) 0%,transparent 60%);
+  pointer-events:none;
+}
+
+/* ── NAME SCREEN ── */
+.welcome-emoji{font-size:4rem;text-align:center;display:block;margin:10px 0;
+  animation:float 3s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.welcome-title{font-family:'Cinzel',serif;font-size:1.3rem;color:var(--gold);
+  text-align:center;margin-bottom:8px;letter-spacing:1px}
+.welcome-text{text-align:center;font-size:1.05rem;line-height:1.85;
+  color:rgba(253,246,232,.78);margin-bottom:22px}
+.name-label{font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:3px;
+  color:var(--gold);margin-bottom:8px;display:block;text-transform:uppercase}
+.name-input{
+  width:100%;padding:14px 18px;
+  background:rgba(253,246,232,.05);
+  border:1px solid rgba(201,168,76,.35);
+  border-radius:10px;
+  color:var(--cream);
+  font-family:'Cormorant Garamond',serif;
+  font-size:1.1rem;
+  outline:none;
+  transition:border-color .2s,box-shadow .2s;
+  margin-bottom:18px;
+}
+.name-input::placeholder{color:rgba(253,246,232,.3)}
+.name-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,.12)}
+
+/* ── BUTTONS ── */
+.btn-primary{
+  background:linear-gradient(135deg,var(--saffron),#C04800);
+  border:none;color:#fff;
+  font-family:'Cinzel',serif;font-size:.88rem;letter-spacing:2.5px;
+  padding:14px 38px;border-radius:10px;cursor:pointer;
+  transition:all .22s;text-transform:uppercase;
+  box-shadow:0 6px 24px rgba(232,100,10,.35);
+  display:block;width:100%;
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(232,100,10,.5)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+.btn-gold{
+  background:linear-gradient(135deg,var(--gold),#9A7020);
+  border:none;color:var(--ink);
+  font-family:'Cinzel',serif;font-size:.85rem;letter-spacing:2px;
+  padding:13px 32px;border-radius:10px;cursor:pointer;
+  transition:all .22s;text-transform:uppercase;
+  box-shadow:0 6px 22px rgba(201,168,76,.3);
+  display:block;width:100%;
+}
+.btn-gold:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(201,168,76,.45)}
+
+.btn-ghost{
+  background:transparent;border:1px solid var(--border);
+  color:var(--muted);font-family:'Cinzel',serif;font-size:.75rem;
+  letter-spacing:2px;padding:10px 24px;border-radius:8px;
+  cursor:pointer;transition:all .2s;text-transform:uppercase;
+}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
+
+.btn-row{display:flex;gap:12px;margin-top:16px}
+.btn-row .btn-primary,.btn-row .btn-gold{flex:1;padding:13px 18px}
+
+/* ── QUIZ SCREEN ── */
+.quiz-topbar{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:14px;
+}
+.q-stat{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:2px;color:var(--muted)}
+.q-stat strong{color:var(--gold);font-size:.85rem}
+.timer-badge{
+  background:rgba(232,100,10,.12);border:1px solid rgba(232,100,10,.3);
+  border-radius:20px;padding:5px 14px;
+  font-family:'Cinzel',serif;font-size:.78rem;color:var(--saffron2);
+  letter-spacing:1px;display:flex;align-items:center;gap:6px;
+}
+.timer-badge.urgent{
+  background:rgba(232,64,64,.15);border-color:rgba(232,64,64,.4);
+  color:#FF6B6B;animation:pulse .7s ease-in-out infinite alternate;
+}
+@keyframes pulse{from{opacity:1}to{opacity:.5}}
+
+.prog-track{height:4px;background:rgba(201,168,76,.1);border-radius:10px;
+  margin-bottom:22px;overflow:hidden}
+.prog-fill{height:100%;border-radius:10px;transition:width .5s cubic-bezier(.4,0,.2,1);
+  background:linear-gradient(90deg,var(--saffron),var(--gold))}
+
+.chapter-pill{
+  display:inline-flex;align-items:center;gap:7px;
+  background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.2);
+  border-radius:20px;padding:4px 14px;
+  font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:1.5px;
+  color:var(--gold);text-transform:uppercase;margin-bottom:16px;
+}
+
+.q-number-bg{
+  font-family:'Cinzel Decorative',serif;
+  font-size:5rem;color:rgba(201,168,76,.07);
+  line-height:1;margin-bottom:-22px;user-select:none;
+}
+.q-text{
+  font-size:1.13rem;font-weight:600;line-height:1.8;
+  color:var(--cream);margin-bottom:22px;
+}
+
+/* ── OPTIONS ── */
+.options{display:flex;flex-direction:column;gap:9px;margin-bottom:20px}
+.opt{
+  display:flex;align-items:flex-start;gap:12px;
+  background:rgba(253,246,232,.03);
+  border:1px solid rgba(201,168,76,.18);
+  border-radius:11px;padding:13px 16px;
+  cursor:pointer;transition:all .2s;
+  font-family:'Cormorant Garamond',serif;font-size:1rem;
+  color:rgba(253,246,232,.85);line-height:1.5;text-align:left;
+  width:100%;
+}
+.opt:hover:not(:disabled){
+  background:rgba(201,168,76,.08);
+  border-color:rgba(201,168,76,.45);
+  transform:translateX(4px);
+}
+.opt:disabled{cursor:default}
+.opt.correct{background:rgba(61,191,122,.12);border-color:rgba(61,191,122,.45);color:#7DEBB0}
+.opt.wrong{background:rgba(232,64,64,.12);border-color:rgba(232,64,64,.4);color:#FFAAAA}
+.opt.reveal{background:rgba(61,191,122,.07);border-color:rgba(61,191,122,.25);color:#7DEBB0}
+
+.opt-key{
+  font-family:'Cinzel',serif;font-size:.72rem;color:var(--gold);
+  min-width:22px;padding-top:2px;flex-shrink:0;
+}
+
+/* ── INSIGHT BOX ── */
+.insight{
+  background:rgba(201,168,76,.06);
+  border:1px solid rgba(201,168,76,.2);
+  border-left:3px solid var(--saffron);
+  border-radius:10px;padding:15px 18px;margin-bottom:18px;
+}
+.insight-lbl{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:2px;
+  color:var(--saffron2);margin-bottom:7px;text-transform:uppercase}
+.insight p{font-size:.98rem;line-height:1.78;color:rgba(253,246,232,.8);font-style:italic}
+
+/* streak badge */
+.streak-toast{
+  position:fixed;top:24px;right:24px;z-index:999;
+  background:linear-gradient(135deg,#3DBF7A,#1A9A58);
+  color:#fff;font-family:'Cinzel',serif;font-size:.78rem;letter-spacing:1.5px;
+  padding:10px 20px;border-radius:30px;box-shadow:0 6px 24px rgba(61,191,122,.4);
+  animation:slideIn .4s ease,fadeOut .4s ease 1.6s forwards;
+}
+@keyframes slideIn{from{transform:translateX(120px);opacity:0}to{transform:none;opacity:1}}
+@keyframes fadeOut{to{opacity:0;transform:translateY(-10px)}}
+
+/* ── RESULTS ── */
+.score-ring{
+  width:170px;height:170px;border-radius:50%;
+  border:2px solid var(--gold);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  margin:0 auto 22px;
+  background:radial-gradient(circle,rgba(201,168,76,.1),transparent 70%);
+  box-shadow:0 0 50px rgba(201,168,76,.2),0 0 100px rgba(232,100,10,.08);
+  position:relative;
+}
+.score-ring::before{
+  content:'';position:absolute;inset:-4px;border-radius:50%;
+  border:1px solid rgba(201,168,76,.12);
+}
+.score-big{font-family:'Cinzel Decorative',serif;font-size:3rem;color:var(--gold);line-height:1}
+.score-denom{font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:3px;
+  color:var(--muted);margin-top:2px}
+.result-grade{font-family:'Cinzel',serif;font-size:1.25rem;color:var(--gold);
+  text-align:center;margin-bottom:6px;letter-spacing:1px}
+.result-verse{text-align:center;font-style:italic;font-size:1rem;
+  color:var(--muted);margin-bottom:24px;line-height:1.7}
+
+.stats-row{display:flex;gap:12px;margin-bottom:20px}
+.stat-box{flex:1;background:rgba(253,246,232,.03);border:1px solid var(--border);
+  border-radius:10px;padding:14px;text-align:center}
+.stat-val{font-family:'Cinzel',serif;font-size:1.4rem;color:var(--gold2)}
+.stat-lbl{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:2px;
+  color:var(--muted);margin-top:3px;text-transform:uppercase}
+
+.review-card{background:rgba(253,246,232,.02);border:1px solid var(--border);
+  border-radius:10px;padding:14px 16px;margin-bottom:10px}
+.review-q{font-size:.98rem;color:rgba(253,246,232,.82);line-height:1.6;margin-bottom:7px}
+.review-a{font-size:.88rem;color:rgba(253,246,232,.5);line-height:1.5}
+.review-a .correct-lbl{color:#7DEBB0}
+.review-a .wrong-lbl{color:#FFAAAA}
+
+/* ── LEADERBOARD ── */
+.lb-header{text-align:center;margin-bottom:22px}
+.lb-title{font-family:'Cinzel Decorative',serif;font-size:1.3rem;color:var(--gold);letter-spacing:1.5px}
+.lb-sub{font-size:.9rem;color:var(--muted);margin-top:5px;font-style:italic}
+
+.podium-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:22px}
+.podium-card{
+  border-radius:14px;padding:18px 12px;text-align:center;
+  border:1px solid;position:relative;overflow:hidden;
+}
+.podium-card.gold-p{
+  background:linear-gradient(160deg,rgba(201,168,76,.18),rgba(201,168,76,.06));
+  border-color:rgba(201,168,76,.4);
+  transform:translateY(-6px);
+}
+.podium-card.silver-p{
+  background:rgba(192,192,192,.07);border-color:rgba(192,192,192,.25);
+}
+.podium-card.bronze-p{
+  background:rgba(205,127,50,.07);border-color:rgba(205,127,50,.25);
+}
+.podium-medal{font-size:2rem;display:block;margin-bottom:6px}
+.podium-name{font-family:'Cinzel',serif;font-size:.82rem;color:var(--cream);
+  word-break:break-word;line-height:1.3;margin-bottom:5px}
+.podium-score{font-family:'Cinzel Decorative',serif;font-size:1.3rem;color:var(--gold2)}
+.podium-time{font-size:.75rem;color:var(--muted);margin-top:3px}
+.podium-date{font-size:.65rem;color:rgba(253,246,232,.3);margin-top:2px}
+
+.lb-table{width:100%}
+.lb-row{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 16px;border-radius:10px;margin-bottom:8px;
+  background:rgba(253,246,232,.02);border:1px solid var(--border);
+  transition:background .2s;
+}
+.lb-row:hover{background:rgba(201,168,76,.05)}
+.lb-row.me{background:rgba(232,100,10,.07);border-color:rgba(232,100,10,.3)}
+.lb-rank{font-family:'Cinzel',serif;font-size:1rem;color:var(--gold);
+  min-width:32px;text-align:center}
+.lb-name{flex:1;font-size:1rem;color:var(--cream);font-weight:600}
+.lb-score{font-family:'Cinzel',serif;font-size:.9rem;color:var(--gold2);white-space:nowrap}
+.lb-time{font-size:.8rem;color:var(--muted);white-space:nowrap;margin-left:8px}
+.lb-empty{text-align:center;color:var(--muted);font-style:italic;font-size:1rem;padding:30px}
+
+.you-badge{
+  background:rgba(232,100,10,.2);color:var(--saffron2);
+  font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:1px;
+  padding:2px 8px;border-radius:10px;margin-left:8px;
+}
+
+.loading{text-align:center;color:var(--muted);font-style:italic;padding:30px;font-size:1rem}
+
+.nav-tabs{display:flex;gap:8px;margin-bottom:22px}
+.tab{flex:1;padding:11px;border-radius:10px;font-family:'Cinzel',serif;
+  font-size:.72rem;letter-spacing:2px;cursor:pointer;transition:all .2s;
+  text-transform:uppercase;border:1px solid var(--border);
+  background:transparent;color:var(--muted);text-align:center;
+}
+.tab.active{background:rgba(201,168,76,.12);border-color:rgba(201,168,76,.4);color:var(--gold)}
+
+.wa-box{
+  background:rgba(37,211,102,.05);border:1px solid rgba(37,211,102,.2);
+  border-radius:12px;padding:16px 20px;text-align:center;margin-top:18px;
+  font-size:.95rem;color:rgba(253,246,232,.7);line-height:1.8;
+}
+.wa-box strong{color:#5CD98A}
+
+@media(max-width:480px){
+  .card{padding:18px 14px}
+  .podium-row{gap:6px}
+  .podium-card{padding:14px 8px}
+  .stats-row{flex-direction:column}
+}
+`;
+
+/* ─── QUESTIONS ──────────────────────────────────────────────
+   20 challenging questions sourced from the Introduction
+   section concepts of Bhagavad Gita As It Is
+─────────────────────────────────────────────────────────────── */
+const RAW_QUESTIONS = [
+  {
+    tag: "Introduction — Who Speaks",
+    q: "Srila Prabhupada stresses in the Introduction that the Bhagavad Gita must be understood as the words of which specific speaker, without which its meaning is fundamentally distorted?",
+    opts: [
+      "Vyasadeva, the compiler of the Vedas, speaking through Sanjaya",
+      "Sri Krishna Himself — the Supreme Personality of Godhead — speaking directly",
+      "An ancient unnamed sage summarized by Arjuna later",
+      "A collective wisdom of the Vedic rishis channeled through Krishna"
+    ],
+    ans: 1,
+    insight: "Prabhupada is emphatic — the Gita loses its authority the moment we treat it as the opinion of any ordinary person. It is Krishna's direct speech, and that is its supreme qualification."
+  },
+  {
+    tag: "Introduction — Five Subjects",
+    q: "According to the Introduction, Bhagavad Gita deals with five principal topics. Which of the following correctly identifies ALL five as Prabhupada explains them?",
+    opts: [
+      "Dharma, Artha, Kama, Moksha, and Yoga",
+      "God, Soul, Nature, Time, and Activity (Ishvara, Jiva, Prakriti, Kala, Karma)",
+      "Creation, Preservation, Destruction, Liberation, and Devotion",
+      "Mind, Intellect, Ego, Consciousness, and Supersoul"
+    ],
+    ans: 1,
+    insight: "These five subjects — Ishvara (the Supreme Controller), Jiva (living beings), Prakriti (material nature), Kala (time), and Karma (activity) — form the complete philosophical framework of the Gita as laid out in the Introduction."
+  },
+  {
+    tag: "Introduction — Paramparā",
+    q: "In the Introduction, Prabhupada explains that Krishna Himself says the Gita was first spoken not to Arjuna but to another recipient. Who was this original recipient?",
+    opts: [
+      "Brahma, the creator, on the first day of creation",
+      "Narada Muni, the great celestial sage",
+      "The sun-god Vivasvan, who then passed it to Manu, who passed it to Ikshvaku",
+      "Shiva, who then taught it to his wife Parvati"
+    ],
+    ans: 2,
+    insight: "This reveals the disciplic succession (paramparā). The Gita is not a new teaching — it is an eternal knowledge passed down through authorized teachers. Prabhupada shows that the tradition was disrupted, which is why Krishna spoke it again to Arjuna."
+  },
+  {
+    tag: "Introduction — Nature of Jiva",
+    q: "Prabhupada explains in the Introduction that the living entity (jiva) and the Supreme (Ishvara) are both eternal spiritual beings. What is the KEY philosophical difference between them?",
+    opts: [
+      "The jiva is material while Krishna is spiritual",
+      "The jiva is temporary while Krishna is permanent",
+      "The jiva is infinitesimally small and subordinate; Krishna is infinitely great and the ultimate controller",
+      "There is no real difference — both are equal in every respect in liberated state"
+    ],
+    ans: 2,
+    insight: "This is Prabhupada's critique of impersonalism. Even in liberation, the jiva does not become equal to God. The jiva is qualitatively one with Krishna (both being spiritual) but quantitatively always infinitesimal compared to the infinite Supreme."
+  },
+  {
+    tag: "Introduction — Arjuna's Qualification",
+    q: "Why does Prabhupada highlight Arjuna's specific qualification to receive the highest teaching of the Bhagavad Gita in the Introduction?",
+    opts: [
+      "Because Arjuna was the most intellectually brilliant philosopher of his era",
+      "Because Arjuna was a pure devotee, a surrendered disciple who accepted Krishna as his guru",
+      "Because Arjuna was the strongest warrior and Krishna respected strength",
+      "Because Arjuna had memorized all the Vedas and was thus eligible"
+    ],
+    ans: 1,
+    insight: "Prabhupada makes this critical point: the Gita's deepest secrets are not revealed through scholarship or power but through devotion and surrender. Arjuna's greatness was in his humility and his faith in Krishna."
+  },
+  {
+    tag: "Introduction — Commentators' Error",
+    q: "In the Introduction, Prabhupada identifies the fundamental mistake that many commentators make when explaining the Bhagavad Gita. What is this mistake?",
+    opts: [
+      "They translate the Sanskrit incorrectly due to language barriers",
+      "They focus too much on historical context and ignore philosophy",
+      "They eliminate or diminish Krishna's supreme position and interpret the Gita through their own personal philosophy and desires",
+      "They explain too many verses and make the Gita seem complicated"
+    ],
+    ans: 2,
+    insight: "Prabhupada's foundational argument in the Introduction is that the Gita is misunderstood precisely because commentators overlay their own agendas. A politician sees politics; a nationalist sees patriotism. The Gita must be received as it is — from Krishna."
+  },
+  {
+    tag: "Introduction — Material Nature",
+    q: "How does Prabhupada describe the relationship between material nature (prakriti) and the Supreme Lord in the Introduction?",
+    opts: [
+      "Prakriti is independent of Krishna and creates the world on its own",
+      "Prakriti is Krishna's inferior energy, working under His direction — never independent",
+      "Prakriti and Krishna are equal forces in an eternal balance",
+      "Prakriti is an illusion and has no real existence"
+    ],
+    ans: 1,
+    insight: "This is a central point — material nature has no independent existence. It acts only under the sanction and direction of the Supreme. The living entities who forget Krishna become subject to the rules of prakriti."
+  },
+  {
+    tag: "Introduction — Role of Time",
+    q: "According to the Introduction, what is the nature of 'kala' (time) as one of the five subjects of the Gita?",
+    opts: [
+      "Time is a human-made concept and does not exist in absolute reality",
+      "Time is the greatest of all gods and is independent of Krishna",
+      "Time is eternal and is one of the energies under Krishna's control — it governs the material manifestation",
+      "Time is created by Brahma and destroyed by Shiva in each cosmic cycle"
+    ],
+    ans: 2,
+    insight: "Time is not separate from God's control. Even the massive cosmic creations and dissolutions are orchestrated under the energy of kala. Prabhupada shows time as one of God's instruments, not an independent force."
+  },
+  {
+    tag: "Introduction — Karma",
+    q: "In the Introduction, how does Prabhupada define 'karma' as one of the five essential subjects of the Bhagavad Gita?",
+    opts: [
+      "Karma means the inevitable fate assigned to a soul before birth",
+      "Karma refers only to sinful activities and their punishments",
+      "Karma means all activities performed by living entities — which bind them in material existence unless directed toward Krishna",
+      "Karma is the ancient Vedic system of ritualistic sacrifice only"
+    ],
+    ans: 2,
+    insight: "Karma in the Gita's context is much broader than punishment and reward. Every action creates a reaction that ties the soul to material existence. The Gita teaches how to act — in Krishna consciousness — to step free of this binding cycle."
+  },
+  {
+    tag: "Introduction — Purpose of Gita",
+    q: "Prabhupada states explicitly in the Introduction what the ultimate purpose of the Bhagavad Gita is. What is it?",
+    opts: [
+      "To teach Indians how to fight righteous wars when dharma is under threat",
+      "To present a comparative study of world religions and philosophies",
+      "To deliver the human being from ignorance of material existence and bring them to full Krishna consciousness",
+      "To establish a code of ethics and moral conduct for civilized human society"
+    ],
+    ans: 2,
+    insight: "The purpose is not political, cultural, or even broadly religious. Prabhupada is specific: the Gita exists to free the conditioned soul from illusion and re-establish their eternal loving relationship with Krishna."
+  },
+  {
+    tag: "Introduction — Nature of the Soul",
+    q: "The Introduction describes the soul's relationship with the material body. Which description best matches Prabhupada's explanation?",
+    opts: [
+      "The soul and body are the same thing — consciousness is produced by the brain",
+      "The soul enters the body at birth, suffers, and at death merges into the infinite Brahman permanently",
+      "The soul is an eternal spark of the Supreme — it inhabits temporary material bodies due to conditioning but is not the body itself",
+      "The soul is newly created for each individual life and then dissolves after death"
+    ],
+    ans: 2,
+    insight: "The confusion of the soul with the body is what Prabhupada calls the 'bodily concept of life' — the root of all material suffering. The soul is never born and never dies; it simply changes garments called bodies."
+  },
+  {
+    tag: "Introduction — Maya",
+    q: "How does Prabhupada explain 'maya' (illusion) in the context of the Introduction to the Bhagavad Gita?",
+    opts: [
+      "Maya means the entire material world is completely unreal and does not exist at all",
+      "Maya is forgetfulness of one's eternal relationship with Krishna, causing the soul to falsely identify with matter",
+      "Maya is a demon who was defeated by Krishna before the battle of Kurukshetra",
+      "Maya refers only to magical illusions created by yogic powers"
+    ],
+    ans: 1,
+    insight: "The material world is real — but the soul's identification with it is the illusion. Prabhupada explains that maya is like a dream: vivid and convincing while experienced, but the soul's true home is the spiritual world with Krishna."
+  },
+  {
+    tag: "Introduction — Disciplic Succession",
+    q: "Prabhupada explains in the Introduction that the disciplic succession (paramparā) was broken before Krishna spoke the Gita to Arjuna. What consequence does he say results from a broken paramparā?",
+    opts: [
+      "The teaching disappears entirely from human civilization",
+      "The knowledge becomes corrupted — its original purpose is lost and must be re-established by the Lord",
+      "The next teacher must rewrite the scripture from the beginning",
+      "The knowledge becomes secret and is only available to royal families"
+    ],
+    ans: 1,
+    insight: "This is why Krishna says to Arjuna 'I am telling this ancient science to you.' The chain was broken; the pure understanding was lost. Prabhupada's mission was itself the restoration of this authentic understanding."
+  },
+  {
+    tag: "Introduction — Acintya Bhedabheda",
+    q: "The Introduction touches on the philosophy of the relationship between the Supreme and the living beings. Which philosophical conclusion does Prabhupada support?",
+    opts: [
+      "Total oneness — the individual and God are completely identical with no distinction whatsoever",
+      "Total separation — God and the soul are completely different in every way",
+      "Inconceivable simultaneous oneness and difference — qualitatively one spirit, but quantitatively always distinct",
+      "The relationship is unknowable and must never be defined or discussed"
+    ],
+    ans: 2,
+    insight: "Acintya-bhedabheda-tattva — the philosophy of Sri Chaitanya — is the conclusion Prabhupada establishes. The jiva is of the same spiritual quality as Krishna but is never equal in magnitude. This refutes both extreme monism and extreme dualism."
+  },
+  {
+    tag: "Introduction — Approaching the Gita",
+    q: "According to Prabhupada's Introduction, what is the correct method for approaching and understanding the Bhagavad Gita?",
+    opts: [
+      "Read it alone silently through your own intelligence without any teacher's influence",
+      "Study it alongside Western philosophy to bridge cultural gaps",
+      "Receive it through the disciplic succession from a bona fide spiritual master with submission and service",
+      "Analyze it through historical, linguistic, and archaeological research methods"
+    ],
+    ans: 2,
+    insight: "Prabhupada insists: the Gita is not a subject for academic speculation. It is revealed knowledge meant to be received — not dissected. Submission to a bona fide guru in disciplic succession is the key that unlocks its true meaning."
+  },
+  {
+    tag: "Introduction — Ishvara",
+    q: "The Introduction establishes 'Ishvara' as the first and foremost subject of the Gita. What specific Sanskrit term does Prabhupada explain as the highest category of Ishvara?",
+    opts: [
+      "Paramatma — the Supersoul located in every heart",
+      "Brahman — the impersonal effulgence of the Absolute",
+      "Bhagavan — the Supreme Personality of Godhead, the personal form with full six opulences",
+      "Antaryami — the inner controller who witnesses all activities"
+    ],
+    ans: 2,
+    insight: "Prabhupada establishes the three aspects of the Absolute — Brahman, Paramatma, and Bhagavan — and clarifies that Bhagavan (the personal God) is the highest realization. Krishna is Bhagavan svayam — God Himself."
+  },
+  {
+    tag: "Introduction — Sensual Interpretation",
+    q: "Prabhupada warns in the Introduction that people approach the Gita with a specific wrong motivation. What is this motivation and what is its result?",
+    opts: [
+      "Approaching it for poetic enjoyment — which makes one a poet but not liberated",
+      "Approaching it for sense gratification and personal justification — which prevents genuine understanding",
+      "Approaching it for academic degrees — which makes one knowledgeable but arrogant",
+      "Approaching it for political purposes — which creates righteous wars unnecessarily"
+    ],
+    ans: 1,
+    insight: "Prabhupada's sharp critique: people often twist the Gita to support whatever they already want to do. A sense gratifier reads it as permission to enjoy; a nationalist reads it as a call to arms. The Gita's real purpose escapes all of them."
+  },
+  {
+    tag: "Introduction — Arjuna's Problem",
+    q: "Prabhupada explains that Arjuna's breakdown on the battlefield, while appearing emotional, actually represents something profound. What does his confusion symbolize in the Introduction?",
+    opts: [
+      "Arjuna's cowardice that Krishna had to overcome through encouragement",
+      "A political strategy to gain sympathy before the war",
+      "The universal condition of every conditioned soul — caught in the illusion of bodily relationships and forgetting one's duty",
+      "A test of Arjuna's loyalty that Krishna had designed in advance"
+    ],
+    ans: 2,
+    insight: "Prabhupada frames Arjuna's grief not as weakness but as the teaching opportunity — the very moment when spiritual knowledge becomes necessary. This is the condition of every human soul entangled in material affection."
+  },
+  {
+    tag: "Introduction — Bhakti as Summit",
+    q: "Though the Introduction touches on various yoga paths, which does Prabhupada ultimately identify as the highest process recommended by the Bhagavad Gita?",
+    opts: [
+      "Jnana Yoga — the path of discrimination and philosophical analysis of matter and spirit",
+      "Ashtanga Yoga — the eightfold system of physical and mental discipline",
+      "Bhakti Yoga — pure, unmotivated devotional service to the Supreme Personality of Godhead",
+      "Karma Yoga — performing all prescribed duties without personal desire"
+    ],
+    ans: 2,
+    insight: "All other yoga systems, Prabhupada explains, are meant to lead one gradually to bhakti. Bhakti Yoga is not a stepping stone — it is the summit. And it is simultaneously the easiest, because it begins with simply hearing about Krishna."
+  },
+  {
+    tag: "Introduction — Gita's Unique Position",
+    q: "How does Prabhupada characterize the position of the Bhagavad Gita among all other Vedic scriptures in his Introduction?",
+    opts: [
+      "It is one important scripture among many equally authoritative texts",
+      "It is the most ancient text, predating all other Vedic literature",
+      "It is the cream of all Vedic knowledge — the essence and conclusion of all Upanishads, spoken by God Himself",
+      "It is primarily a text for warriors and kings, not applicable to all people"
+    ],
+    ans: 2,
+    insight: "Prabhupada uses the metaphor of the Gita as the cream skimmed from the vast milk of Vedic literature. The Upanishads are the cows; Arjuna is the calf; and the Gita is the milk that Krishna draws for all sincere seekers."
+  }
+];
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function prepareQuestions() {
+  return shuffle(RAW_QUESTIONS).map(q => {
+    const indices = shuffle([0, 1, 2, 3]);
+    const newOpts = indices.map(i => q.opts[i]);
+    const newAns = indices.indexOf(q.ans);
+    return { ...q, opts: newOpts, ans: newAns };
+  });
+}
+
+function fmtTime(sec) {
+  const m = Math.floor(sec / 60).toString().padStart(2, "0");
+  const s = (sec % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+}
+
+const GRADES = [
+  { min: 18, title: "Param Vijeta 🏆", verse: '"Among the knowers of the Gita, you stand at the summit." — Krishna\'s blessing' },
+  { min: 15, title: "Uttama Gyani 🌟", verse: '"The wise man sees with equal vision." — Bhagavad Gita 5.18' },
+  { min: 11, title: "Sadhaka — Sincere Seeker 🌿", verse: '"Even a little advancement on this path protects one from the greatest fear." — BG 2.40' },
+  { min: 6, title: "Mumukshu — Aspiring Soul 📿", verse: '"Begin where you are, and the path shall open before you." — Prabhupada' },
+  { min: 0, title: "The Journey Begins 🪷", verse: '"Out of thousands, one seeks perfection. Of those who seek, one truly knows Me." — BG 7.3' }
+];
+
+const STORAGE_KEY = "gita_intro_leaderboard_v2";
+
+/* ═══════════════════════════════════════════════════════════ */
+export default function GitaQuiz() {
+  const [screen, setScreen] = useState("welcome"); // welcome | quiz | result | leaderboard
+  const [name, setName] = useState("");
+  const [questions, setQuestions] = useState([]);
+  const [qi, setQi] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [answered, setAnswered] = useState([]);
+  const [seconds, setSeconds] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [streakToast, setStreakToast] = useState(null);
+  const [lbData, setLbData] = useState(null);
+  const [lbLoading, setLbLoading] = useState(false);
+  const [tab, setTab] = useState("result"); // result | review
+  const [myRecord, setMyRecord] = useState(null);
+  const timerRef = useRef(null);
+  const toastRef = useRef(null);
+
+  /* Timer */
+  useEffect(() => {
+    if (screen === "quiz") {
+      timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
+    } else {
+      clearInterval(timerRef.current);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [screen]);
+
+  /* Streak toast */
+  const showStreak = useCallback((n) => {
+    if (n >= 2) {
+      clearTimeout(toastRef.current);
+      setStreakToast(`🔥 ${n} in a row!`);
+      toastRef.current = setTimeout(() => setStreakToast(null), 2100);
+    }
+  }, []);
+
+  const startQuiz = () => {
+    if (!name.trim()) return;
+    const q = prepareQuestions();
+    setQuestions(q);
+    setQi(0);
+    setSelected(null);
+    setAnswered([]);
+    setSeconds(0);
+    setStreak(0);
+    setScreen("quiz");
+  };
+
+  const handleSelect = (idx) => {
+    if (selected !== null) return;
+    setSelected(idx);
+    const correct = idx === questions[qi].ans;
+    const newStreak = correct ? streak + 1 : 0;
+    setStreak(newStreak);
+    if (correct) showStreak(newStreak);
+    setAnswered(prev => [...prev, { selected: idx, correct }]);
+  };
+
+  const handleNext = async () => {
+    if (qi + 1 < questions.length) {
+      setQi(qi + 1);
+      setSelected(null);
+    } else {
+      // answered already contains all 20 answers (set in handleSelect), so just count directly
+      const finalScore = answered.filter(a => a.correct).length;
+      const rec = { name: name.trim(), score: finalScore, total: 20, timeSec: seconds, date: new Date().toISOString() };
+      setMyRecord({ ...rec, score: finalScore });
+      await saveRecord(rec);
+      setScreen("result");
+      setTab("result");
+    }
+  };
+
+  const saveRecord = async (rec) => {
+    try {
+      let existing = [];
+      try {
+        const res = await window.storage.get(STORAGE_KEY, true);
+        if (res && res.value) existing = JSON.parse(res.value);
+      } catch (_) {}
+      existing.push(rec);
+      await window.storage.set(STORAGE_KEY, JSON.stringify(existing), true);
+    } catch (e) { console.error("Storage error", e); }
+  };
+
+  const loadLeaderboard = async () => {
+    setLbLoading(true);
+    try {
+      let data = [];
+      try {
+        const res = await window.storage.get(STORAGE_KEY, true);
+        if (res && res.value) data = JSON.parse(res.value);
+      } catch (_) {}
+      // Rank: sort by score desc, then time asc
+      data.sort((a, b) => b.score - a.score || a.timeSec - b.timeSec);
+      setLbData(data);
+    } catch (e) { setLbData([]); }
+    setLbLoading(false);
+  };
+
+  const goLeaderboard = () => { loadLeaderboard(); setScreen("leaderboard"); };
+
+  const score = answered.filter(a => a.correct).length;
+  const progress = (qi / questions.length) * 100;
+  const grade = myRecord ? GRADES.find(g => myRecord.score >= g.min) : null;
+
+  return (
+    <div className="app">
+      <style>{CSS}</style>
+      {streakToast && <div className="streak-toast">{streakToast}</div>}
+
+      <div className="wrap">
+
+        {/* ── HEADER ── */}
+        <div className="lotus">🪷</div>
+        <div className="site-title">Bhagavad Gita — Introduction Quiz</div>
+        <div className="site-sub">Based on Srila Prabhupada's Bhagavad Gita As It Is</div>
+        <div className="divider">✦</div>
+
+        {/* ══════════════ WELCOME ══════════════ */}
+        {screen === "welcome" && (
+          <>
+            <div className="card" style={{ textAlign: "center" }}>
+              <span className="welcome-emoji">📿</span>
+              <div className="welcome-title">20 Challenging Questions</div>
+              <p className="welcome-text">
+                This quiz tests deep understanding of the <strong style={{ color: "var(--gold)" }}>Introduction</strong> of Bhagavad Gita As It Is — as presented by His Divine Grace A.C. Bhaktivedanta Swami Prabhupada.<br /><br />
+                Questions are <strong style={{ color: "var(--saffron2)" }}>shuffled randomly</strong> every attempt. Options appear in random order. Your name and score are recorded on the <strong style={{ color: "var(--gold)" }}>live leaderboard</strong>.
+              </p>
+
+              <label className="name-label">Enter Your Full Name</label>
+              <input
+                className="name-input"
+                placeholder="e.g. Madhav das, Priya Sharma…"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && name.trim() && startQuiz()}
+                maxLength={40}
+              />
+              <button className="btn-primary" onClick={startQuiz} disabled={!name.trim()}>
+                🙏 Begin Quiz — Hare Krishna
+              </button>
+            </div>
+
+            <div className="card" style={{ padding: "18px 22px" }}>
+              <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+                <div style={{ fontSize: "2rem" }}>🏆</div>
+                <div>
+                  <div style={{ fontFamily: "Cinzel, serif", fontSize: ".78rem", color: "var(--gold)", letterSpacing: "2px", marginBottom: "5px" }}>LIVE LEADERBOARD</div>
+                  <div style={{ fontSize: ".95rem", color: "var(--muted)", lineHeight: "1.6" }}>
+                    Your rank is calculated by score first, then by time taken. Top 3 earn medals 🥇🥈🥉
+                  </div>
+                </div>
+              </div>
+              <div style={{ marginTop: "14px" }}>
+                <button className="btn-ghost" style={{ width: "100%" }} onClick={goLeaderboard}>
+                  📊 View Current Leaderboard
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ══════════════ QUIZ ══════════════ */}
+        {screen === "quiz" && questions.length > 0 && (
+          <div className="card">
+            <div className="quiz-topbar">
+              <span className="q-stat">Q <strong>{qi + 1}</strong> / {questions.length}</span>
+              <div className={`timer-badge ${seconds > 1800 ? "urgent" : ""}`}>
+                ⏱ {fmtTime(seconds)}
+              </div>
+              <span className="q-stat">✅ <strong>{score}</strong></span>
+            </div>
+
+            <div className="prog-track">
+              <div className="prog-fill" style={{ width: `${progress}%` }} />
+            </div>
+
+            <div className="chapter-pill">🪔 {questions[qi].tag}</div>
+            <div className="q-number-bg">0{qi < 9 ? qi + 1 : ""}{qi >= 9 ? qi + 1 : ""}</div>
+            <div className="q-text">{questions[qi].q}</div>
+
+            <div className="options">
+              {questions[qi].opts.map((opt, idx) => {
+                let cls = "opt";
+                if (selected !== null) {
+                  if (idx === questions[qi].ans) cls += " correct";
+                  else if (idx === selected && idx !== questions[qi].ans) cls += " wrong";
+                }
+                return (
+                  <button key={idx} className={cls} onClick={() => handleSelect(idx)} disabled={selected !== null}>
+                    <span className="opt-key">{String.fromCharCode(65 + idx)}.</span>
+                    <span>{opt}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {selected !== null && (
+              <div className="insight">
+                <div className="insight-lbl">🪔 Prabhupada's Insight</div>
+                <p>{questions[qi].insight}</p>
+              </div>
+            )}
+
+            <button className="btn-primary" onClick={handleNext} disabled={selected === null}>
+              {qi + 1 === questions.length ? "Finish & See Results →" : "Next Question →"}
+            </button>
+          </div>
+        )}
+
+        {/* ══════════════ RESULT ══════════════ */}
+        {screen === "result" && myRecord && (
+          <>
+            <div className="card" style={{ textAlign: "center" }}>
+              <div className="score-ring">
+                <div className="score-big">{myRecord.score}</div>
+                <div className="score-denom">OUT OF 20</div>
+              </div>
+              <div className="result-grade">{grade?.title}</div>
+              <div className="result-verse">{grade?.verse}</div>
+
+              <div className="stats-row">
+                <div className="stat-box">
+                  <div className="stat-val">{myRecord.score}</div>
+                  <div className="stat-lbl">Correct</div>
+                </div>
+                <div className="stat-box">
+                  <div className="stat-val">{20 - myRecord.score}</div>
+                  <div className="stat-lbl">Wrong</div>
+                </div>
+                <div className="stat-box">
+                  <div className="stat-val">{fmtTime(myRecord.timeSec)}</div>
+                  <div className="stat-lbl">Time</div>
+                </div>
+                <div className="stat-box">
+                  <div className="stat-val">{Math.round((myRecord.score / 20) * 100)}%</div>
+                  <div className="stat-lbl">Accuracy</div>
+                </div>
+              </div>
+
+              <div className="btn-row">
+                <button className="btn-gold" onClick={goLeaderboard}>🏆 Leaderboard</button>
+                <button className="btn-primary" onClick={() => { setName(""); setScreen("welcome"); }}>↺ Retake</button>
+              </div>
+            </div>
+
+            <div className="nav-tabs">
+              <button className={`tab ${tab === "result" ? "active" : ""}`} onClick={() => setTab("result")}>📊 Summary</button>
+              <button className={`tab ${tab === "review" ? "active" : ""}`} onClick={() => setTab("review")}>📋 Review All Answers</button>
+            </div>
+
+            {tab === "review" && questions.map((q, i) => (
+              <div key={i} className="review-card">
+                <div className="review-q"><strong>Q{i + 1}.</strong> {q.q}</div>
+                <div className="review-a">
+                  ✅ Correct Answer: <span className="correct-lbl">{q.opts[q.ans]}</span>
+                  {answered[i] && !answered[i].correct && (
+                    <div style={{ marginTop: "4px" }}>
+                      ❌ Your Answer: <span className="wrong-lbl">{q.opts[answered[i].selected]}</span>
+                    </div>
+                  )}
+                  <div style={{ marginTop: "6px", fontStyle: "italic", color: "rgba(253,246,232,.45)", fontSize: ".85rem" }}>
+                    💡 {q.insight}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <div className="wa-box">
+              📱 <strong>Share this quiz on WhatsApp!</strong><br />
+              Copy the link from your Claude browser tab and send it to your group.<br />
+              Every student's score is saved to the <strong>live leaderboard</strong> automatically 🙏
+            </div>
+          </>
+        )}
+
+        {/* ══════════════ LEADERBOARD ══════════════ */}
+        {screen === "leaderboard" && (
+          <>
+            <div className="card">
+              <div className="lb-header">
+                <div className="lb-title">🏆 Hall of Devotees</div>
+                <div className="lb-sub">Ranked by Score · Tiebreaker: Fastest Time</div>
+              </div>
+
+              {lbLoading && <div className="loading">Loading sacred records… 🪔</div>}
+
+              {!lbLoading && lbData && (
+                <>
+                  {/* PODIUM — Top 3 */}
+                  {lbData.length >= 1 && (
+                    <div className="podium-row">
+                      {/* Silver = 2nd */}
+                      {lbData[1] ? (
+                        <div className="podium-card silver-p">
+                          <span className="podium-medal">🥈</span>
+                          <div className="podium-name">{lbData[1].name}</div>
+                          <div className="podium-score">{lbData[1].score}/20</div>
+                          <div className="podium-time">⏱ {fmtTime(lbData[1].timeSec)}</div>
+                          <div className="podium-date">{fmtDate(lbData[1].date)}</div>
+                        </div>
+                      ) : <div />}
+
+                      {/* Gold = 1st */}
+                      <div className="podium-card gold-p">
+                        <span className="podium-medal">🥇</span>
+                        <div className="podium-name">{lbData[0].name}</div>
+                        <div className="podium-score">{lbData[0].score}/20</div>
+                        <div className="podium-time">⏱ {fmtTime(lbData[0].timeSec)}</div>
+                        <div className="podium-date">{fmtDate(lbData[0].date)}</div>
+                      </div>
+
+                      {/* Bronze = 3rd */}
+                      {lbData[2] ? (
+                        <div className="podium-card bronze-p">
+                          <span className="podium-medal">🥉</span>
+                          <div className="podium-name">{lbData[2].name}</div>
+                          <div className="podium-score">{lbData[2].score}/20</div>
+                          <div className="podium-time">⏱ {fmtTime(lbData[2].timeSec)}</div>
+                          <div className="podium-date">{fmtDate(lbData[2].date)}</div>
+                        </div>
+                      ) : <div />}
+                    </div>
+                  )}
+
+                  {/* Full table */}
+                  <div style={{ fontFamily: "Cinzel, serif", fontSize: ".68rem", letterSpacing: "2px", color: "var(--muted)", marginBottom: "10px", textTransform: "uppercase" }}>
+                    All Participants ({lbData.length})
+                  </div>
+                  <div className="lb-table">
+                    {lbData.length === 0 && (
+                      <div className="lb-empty">No one has taken the quiz yet.<br />Be the first! 🪷</div>
+                    )}
+                    {lbData.map((rec, i) => {
+                      const isMe = myRecord && rec.name === myRecord.name && rec.date === myRecord.date;
+                      const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`;
+                      return (
+                        <div key={i} className={`lb-row ${isMe ? "me" : ""}`}>
+                          <span className="lb-rank">{medal}</span>
+                          <span className="lb-name">
+                            {rec.name}
+                            {isMe && <span className="you-badge">YOU</span>}
+                          </span>
+                          <span className="lb-score">{rec.score}/20</span>
+                          <span className="lb-time">⏱{fmtTime(rec.timeSec)}</span>
+                          <span style={{ fontSize: ".68rem", color: "rgba(253,246,232,.25)", marginLeft: "6px" }}>{fmtDate(rec.date)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              <div className="btn-row" style={{ marginTop: "20px" }}>
+                <button className="btn-ghost" onClick={() => { loadLeaderboard(); }}>🔄 Refresh</button>
+                <button className="btn-primary" onClick={() => setScreen(myRecord ? "result" : "welcome")}>
+                  ← Back
+                </button>
+              </div>
+            </div>
+
+            <div className="wa-box">
+              📱 <strong>How to share with your WhatsApp group:</strong><br />
+              Copy the URL of this page from your browser and paste it in your group.<br />
+              Every student who takes the quiz is automatically added to this leaderboard! 🙏
+            </div>
+          </>
+        )}
+
+        {/* Footer */}
+        <div className="divider" style={{ marginTop: "30px" }}>🌸</div>
+        <div style={{ textAlign: "center", fontFamily: "Cinzel, serif", fontSize: ".68rem", letterSpacing: "3px", color: "rgba(253,246,232,.2)", lineHeight: "1.9" }}>
+          HARE KRISHNA HARE KRISHNA<br />KRISHNA KRISHNA HARE HARE<br />
+          HARE RAMA HARE RAMA · RAMA RAMA HARE HARE
+        </div>
+      </div>
+    </div>
+  );
+}
