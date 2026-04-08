@@ -737,3 +737,282 @@ function GitaQuiz() {
 
   const score = answered.filter(a => a.correct).length;
   const progress = (qi / questions.length) * 100;
+  const grade = myRecord ? GRADES.find(g => myRecord.score >= g.min) : null;
+
+  return (
+    <div className="app">
+      <style>{CSS}</style>
+      {streakToast && <div className="streak-toast">{streakToast}</div>}
+
+      <div className="wrap">
+
+        {/* ── HEADER ── */}
+        <div className="lotus">🪷</div>
+        <div className="site-title">Bhagavad Gita — Introduction Quiz</div>
+        <div className="site-sub">Based on Srila Prabhupada's Bhagavad Gita As It Is</div>
+        <div className="divider">✦</div>
+
+        {/* ══════════════ WELCOME ══════════════ */}
+        {screen === "welcome" && (
+          <>
+            <div className="card" style={{ textAlign: "center" }}>
+              <span className="welcome-emoji">📿</span>
+              <div className="welcome-title">20 Challenging Questions</div>
+              <p className="welcome-text">
+                This quiz tests deep understanding of the <strong style={{ color: "var(--gold)" }}>Introduction</strong> of Bhagavad Gita As It Is — as presented by His Divine Grace A.C. Bhaktivedanta Swami Prabhupada.<br /><br />
+                Questions are <strong style={{ color: "var(--saffron2)" }}>shuffled randomly</strong> every attempt. Options appear in random order. Your name and score are recorded on the <strong style={{ color: "var(--gold)" }}>live leaderboard</strong>.
+              </p>
+
+              <label className="name-label">Enter Your Full Name</label>
+              <input
+                className="name-input"
+                placeholder="e.g. Madhav das, Priya Sharma…"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && name.trim() && startQuiz()}
+                maxLength={40}
+              />
+              <button className="btn-primary" onClick={startQuiz} disabled={!name.trim()}>
+                🙏 Begin Quiz — Hare Krishna
+              </button>
+            </div>
+
+            <div className="card" style={{ padding: "18px 22px" }}>
+              <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+                <div style={{ fontSize: "2rem" }}>🏆</div>
+                <div>
+                  <div style={{ fontFamily: "Cinzel, serif", fontSize: ".78rem", color: "var(--gold)", letterSpacing: "2px", marginBottom: "5px" }}>LIVE LEADERBOARD</div>
+                  <div style={{ fontSize: ".95rem", color: "var(--muted)", lineHeight: "1.6" }}>
+                    Your rank is calculated by score first, then by time taken. Top 3 earn medals 🥇🥈🥉
+                  </div>
+                </div>
+              </div>
+              <div style={{ marginTop: "14px" }}>
+                <button className="btn-ghost" style={{ width: "100%" }} onClick={goLeaderboard}>
+                  📊 View Current Leaderboard
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ══════════════ QUIZ ══════════════ */}
+        {screen === "quiz" && questions.length > 0 && (
+          <div className="card">
+            <div className="quiz-topbar">
+              <span className="q-stat">Q <strong>{qi + 1}</strong> / {questions.length}</span>
+              <div className={`timer-badge ${seconds > 1800 ? "urgent" : ""}`}>
+                ⏱ {fmtTime(seconds)}
+              </div>
+              <span className="q-stat">✅ <strong>{score}</strong></span>
+            </div>
+
+            <div className="prog-track">
+              <div className="prog-fill" style={{ width: `${progress}%` }} />
+            </div>
+
+            <div className="chapter-pill">🪔 {questions[qi].tag}</div>
+            <div className="q-number-bg">0{qi < 9 ? qi + 1 : ""}{qi >= 9 ? qi + 1 : ""}</div>
+            <div className="q-text">{questions[qi].q}</div>
+
+            <div className="options">
+              {questions[qi].opts.map((opt, idx) => {
+                let cls = "opt";
+                if (selected !== null) {
+                  if (idx === questions[qi].ans) cls += " correct";
+                  else if (idx === selected && idx !== questions[qi].ans) cls += " wrong";
+                }
+                return (
+                  <button key={idx} className={cls} onClick={() => handleSelect(idx)} disabled={selected !== null}>
+                    <span className="opt-key">{String.fromCharCode(65 + idx)}.</span>
+                    <span>{opt}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {selected !== null && (
+              <div className="insight">
+                <div className="insight-lbl">🪔 Prabhupada's Insight</div>
+                <p>{questions[qi].insight}</p>
+              </div>
+            )}
+
+            <button className="btn-primary" onClick={handleNext} disabled={selected === null}>
+              {qi + 1 === questions.length ? "Finish & See Results →" : "Next Question →"}
+            </button>
+          </div>
+        )}
+
+        {/* ══════════════ RESULT ══════════════ */}
+        {screen === "result" && myRecord && (
+          <>
+            <div className="card" style={{ textAlign: "center" }}>
+              <div className="score-ring">
+                <div className="score-big">{myRecord.score}</div>
+                <div className="score-denom">OUT OF 20</div>
+              </div>
+              <div className="result-grade">{grade?.title}</div>
+              <div className="result-verse">{grade?.verse}</div>
+
+              <div className="stats-row">
+                <div className="stat-box">
+                  <div className="stat-val">{myRecord.score}</div>
+                  <div className="stat-lbl">Correct</div>
+                </div>
+                <div className="stat-box">
+                  <div className="stat-val">{20 - myRecord.score}</div>
+                  <div className="stat-lbl">Wrong</div>
+                </div>
+                <div className="stat-box">
+                  <div className="stat-val">{fmtTime(myRecord.timeSec)}</div>
+                  <div className="stat-lbl">Time</div>
+                </div>
+                <div className="stat-box">
+                  <div className="stat-val">{Math.round((myRecord.score / 20) * 100)}%</div>
+                  <div className="stat-lbl">Accuracy</div>
+                </div>
+              </div>
+
+              <div className="btn-row">
+                <button className="btn-gold" onClick={goLeaderboard}>🏆 Leaderboard</button>
+                <button className="btn-primary" onClick={() => { setName(""); setScreen("welcome"); }}>↺ Retake</button>
+              </div>
+            </div>
+
+            <div className="nav-tabs">
+              <button className={`tab ${tab === "result" ? "active" : ""}`} onClick={() => setTab("result")}>📊 Summary</button>
+              <button className={`tab ${tab === "review" ? "active" : ""}`} onClick={() => setTab("review")}>📋 Review All Answers</button>
+            </div>
+
+            {tab === "review" && questions.map((q, i) => (
+              <div key={i} className="review-card">
+                <div className="review-q"><strong>Q{i + 1}.</strong> {q.q}</div>
+                <div className="review-a">
+                  ✅ Correct Answer: <span className="correct-lbl">{q.opts[q.ans]}</span>
+                  {answered[i] && !answered[i].correct && (
+                    <div style={{ marginTop: "4px" }}>
+                      ❌ Your Answer: <span className="wrong-lbl">{q.opts[answered[i].selected]}</span>
+                    </div>
+                  )}
+                  <div style={{ marginTop: "6px", fontStyle: "italic", color: "rgba(253,246,232,.45)", fontSize: ".85rem" }}>
+                    💡 {q.insight}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <div className="wa-box">
+              📱 <strong>Share this quiz on WhatsApp!</strong><br />
+              Copy the link from your browser tab and send it to your group.<br />
+              Every student's score is saved to the <strong>live leaderboard</strong> automatically 🙏
+            </div>
+          </>
+        )}
+
+        {/* ══════════════ LEADERBOARD ══════════════ */}
+        {screen === "leaderboard" && (
+          <>
+            <div className="card">
+              <div className="lb-header">
+                <div className="lb-title">🏆 Hall of Devotees</div>
+                <div className="lb-sub">Ranked by Score · Tiebreaker: Fastest Time</div>
+              </div>
+
+              {lbLoading && <div className="loading">Loading sacred records… 🪔</div>}
+
+              {!lbLoading && lbData && (
+                <>
+                  {/* PODIUM — Top 3 */}
+                  {lbData.length >= 1 && (
+                    <div className="podium-row">
+                      {/* Silver = 2nd */}
+                      {lbData[1] ? (
+                        <div className="podium-card silver-p">
+                          <span className="podium-medal">🥈</span>
+                          <div className="podium-name">{lbData[1].name}</div>
+                          <div className="podium-score">{lbData[1].score}/20</div>
+                          <div className="podium-time">⏱ {fmtTime(lbData[1].timeSec)}</div>
+                          <div className="podium-date">{fmtDate(lbData[1].date)}</div>
+                        </div>
+                      ) : <div />}
+
+                      {/* Gold = 1st */}
+                      <div className="podium-card gold-p">
+                        <span className="podium-medal">🥇</span>
+                        <div className="podium-name">{lbData[0].name}</div>
+                        <div className="podium-score">{lbData[0].score}/20</div>
+                        <div className="podium-time">⏱ {fmtTime(lbData[0].timeSec)}</div>
+                        <div className="podium-date">{fmtDate(lbData[0].date)}</div>
+                      </div>
+
+                      {/* Bronze = 3rd */}
+                      {lbData[2] ? (
+                        <div className="podium-card bronze-p">
+                          <span className="podium-medal">🥉</span>
+                          <div className="podium-name">{lbData[2].name}</div>
+                          <div className="podium-score">{lbData[2].score}/20</div>
+                          <div className="podium-time">⏱ {fmtTime(lbData[2].timeSec)}</div>
+                          <div className="podium-date">{fmtDate(lbData[2].date)}</div>
+                        </div>
+                      ) : <div />}
+                    </div>
+                  )}
+
+                  {/* Full table */}
+                  <div style={{ fontFamily: "Cinzel, serif", fontSize: ".68rem", letterSpacing: "2px", color: "var(--muted)", marginBottom: "10px", textTransform: "uppercase" }}>
+                    All Participants ({lbData.length})
+                  </div>
+                  <div className="lb-table">
+                    {lbData.length === 0 && (
+                      <div className="lb-empty">No one has taken the quiz yet.<br />Be the first! 🪷</div>
+                    )}
+                    {lbData.map((rec, i) => {
+                      const isMe = myRecord && rec.name === myRecord.name && rec.date === myRecord.date;
+                      const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`;
+                      return (
+                        <div key={i} className={`lb-row ${isMe ? "me" : ""}`}>
+                          <span className="lb-rank">{medal}</span>
+                          <span className="lb-name">
+                            {rec.name}
+                            {isMe && <span className="you-badge">YOU</span>}
+                          </span>
+                          <span className="lb-score">{rec.score}/20</span>
+                          <span className="lb-time">⏱{fmtTime(rec.timeSec)}</span>
+                          <span style={{ fontSize: ".68rem", color: "rgba(253,246,232,.25)", marginLeft: "6px" }}>{fmtDate(rec.date)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              <div className="btn-row" style={{ marginTop: "20px" }}>
+                <button className="btn-ghost" onClick={() => { loadLeaderboard(); }}>🔄 Refresh</button>
+                <button className="btn-primary" onClick={() => setScreen(myRecord ? "result" : "welcome")}>
+                  ← Back
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Footer */}
+        <div className="divider" style={{ marginTop: "30px" }}>🌸</div>
+        <div style={{ textAlign: "center", fontFamily: "Cinzel, serif", fontSize: ".68rem", letterSpacing: "3px", color: "rgba(253,246,232,.2)", lineHeight: "1.9" }}>
+          HARE KRISHNA HARE KRISHNA<br />KRISHNA KRISHNA HARE HARE<br />
+          HARE RAMA HARE RAMA · RAMA RAMA HARE HARE
+        </div>
+      </div>
+    </div>
+  );
+}
+
+    // ==========================================
+    // 3. START THE APP
+    // ==========================================
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<GitaQuiz />);
+  </script>
+</body>
+</html>
